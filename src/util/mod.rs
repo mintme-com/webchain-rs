@@ -57,8 +57,8 @@ pub fn to_chain_name(id: u8) -> Option<String> {
 ///
 pub fn to_chain_id(name: &str) -> Option<u8> {
     match name {
-        "mainnet" => Some(61),
-        "testnet" | "morden" => Some(62),
+        "mainnet" => Some(101),
+        "testnet" | "morden" => Some(111),
         _ => None,
     }
 }
