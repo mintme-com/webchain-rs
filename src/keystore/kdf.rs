@@ -2,20 +2,46 @@
 
 use super::prf::Prf;
 use super::Error;
-use crypto::pbkdf2::pbkdf2;
-//TODO: solve `mmap` call on windows for `rust-scrypt`
-#[cfg(target_os = "windows")]
-use crypto::scrypt::{scrypt, ScryptParams};
-#[cfg(all(unix))]
-use rust_scrypt::{scrypt, ScryptParams};
+use super::Salt;
+use hmac::Hmac;
+use pbkdf2::pbkdf2;
+use scrypt::{scrypt, ScryptParams};
+use sha2::{Sha256, Sha512};
 use std::fmt;
 use std::str::FromStr;
 
-/// PBKDF2 key derivation function name
+/// `PBKDF2` key derivation function name
 pub const PBKDF2_KDF_NAME: &str = "pbkdf2";
 
-/// Scrypt key derivation function name
+/// `Scrypt` key derivation function name
 pub const SCRYPT_KDF_NAME: &str = "scrypt";
+
+/// Derived core length in bytes (by default)
+pub const DEFAULT_DK_LENGTH: usize = 32;
+
+/// Key derivation function parameters
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KdfParams {
+    /// Key derivation function
+    #[serde(flatten)]
+    pub kdf: Kdf,
+
+    /// `Kdf` length for parameters
+    pub dklen: usize,
+
+    /// Cryptographic salt for `Kdf`
+    pub salt: Salt,
+}
+
+impl Default for KdfParams {
+    fn default() -> Self {
+        Self {
+            kdf: Kdf::default(),
+            dklen: DEFAULT_DK_LENGTH,
+            salt: Salt::default(),
+        }
+    }
+}
 
 /// Security level for `Kdf`
 #[derive(Clone, Copy, Debug)]
@@ -61,9 +87,11 @@ impl Default for KdfDepthLevel {
 }
 
 /// Key derivation function
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(untagged)]
 pub enum Kdf {
     /// PBKDF2 (not recommended, specified in (RFC 2898)[https://tools.ietf.org/html/rfc2898])
+    #[serde(rename = "pbkdf2")]
     Pbkdf2 {
         /// Pseudo-Random Functions (`HMAC-SHA-256` by default)
         prf: Prf,
@@ -73,6 +101,7 @@ pub enum Kdf {
     },
 
     /// Scrypt (by default, specified in (RPC 7914)[https://tools.ietf.org/html/rfc7914])
+    #[serde(rename = "scrypt")]
     Scrypt {
         /// Number of iterations (`19201` by default)
         n: u32,
@@ -95,24 +124,27 @@ impl Kdf {
                 match prf {
                     Prf::HmacSha256 => {
                         let mut hmac = prf.hmac(passphrase);
-                        pbkdf2(&mut hmac, kdf_salt, c, &mut key);
+                        pbkdf2::<Hmac<Sha256>>(
+                            passphrase.as_bytes(),
+                            kdf_salt,
+                            c as usize,
+                            &mut key,
+                        );
                     }
                     Prf::HmacSha512 => {
-                        let mut hmac = prf.hmac512(passphrase);
-                        pbkdf2(&mut hmac, kdf_salt, c, &mut key);
+                        pbkdf2::<Hmac<Sha512>>(
+                            passphrase.as_bytes(),
+                            kdf_salt,
+                            c as usize,
+                            &mut key,
+                        );
                     }
                 };
             }
-            #[cfg(target_os = "windows")]
             Kdf::Scrypt { n, r, p } => {
                 let log_n = (n as f64).log2().round() as u8;
-                let params = ScryptParams::new(log_n, r, p);
-                scrypt(passphrase.as_bytes(), kdf_salt, &params, &mut key);
-            }
-            #[cfg(all(unix))]
-            Kdf::Scrypt { n, r, p } => {
-                let params = ScryptParams::new(u64::from(n), r, p);
-                scrypt(passphrase.as_bytes(), kdf_salt, &params, &mut key);
+                let params = ScryptParams::new(log_n, r, p).expect("Invalid Scrypt parameters");
+                scrypt(passphrase.as_bytes(), kdf_salt, &params, &mut key).expect("Scrypt failed");
             }
         }
 
@@ -190,7 +222,7 @@ pub mod tests {
             to_32bytes("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd");
 
         assert_eq!(
-            Kdf::from(8).derive(32, &kdf_salt, "testpassword").to_hex(),
+            hex::encode(Kdf::from(8).derive(32, &kdf_salt, "testpassword")),
             "031dc7e0f4f375f6d6fdab7ad8d71834d844e39a6b62f9fb98d942bab76db0f9"
         );
     }
@@ -201,9 +233,7 @@ pub mod tests {
             to_32bytes("fd4acb81182a2c8fa959d180967b374277f2ccf2f7f401cb08d042cc785464b4");
 
         assert_eq!(
-            Kdf::from((2, 8, 1))
-                .derive(32, &kdf_salt, "1234567890")
-                .to_hex(),
+            hex::encode(Kdf::from((2, 8, 1)).derive(32, &kdf_salt, "1234567890")),
             "52a5dacfcf80e5111d2c7fbed177113a1b48a882b066a017f2c856086680fac7"
         );
     }

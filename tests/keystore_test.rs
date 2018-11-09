@@ -1,15 +1,17 @@
 extern crate emerald_rs as emerald;
 extern crate hex;
-extern crate rustc_serialize;
+extern crate serde_json;
 extern crate tempdir;
 extern crate uuid;
 
-use emerald::keystore::{Cipher, CoreCrypto, CryptoType, HdwalletCrypto, Iv, Kdf, KdfDepthLevel,
-                        KeyFile, Mac, Prf, Salt, CIPHER_IV_BYTES, KDF_SALT_BYTES};
+use emerald::keystore::{
+    Cipher, CoreCrypto, CryptoType, HdwalletCrypto, Iv, Kdf, KdfDepthLevel, KeyFile, Mac, Prf,
+    Salt, CIPHER_IV_BYTES, KDF_SALT_BYTES,
+};
 use emerald::storage::{DbStorage, FsStorage, KeyfileStorage};
 use emerald::{Address, KECCAK256_BYTES};
 use hex::FromHex;
-use rustc_serialize::json;
+
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -88,12 +90,12 @@ fn should_decode_keyfile_without_address() {
     let path = keyfile_path("UTC--2017-03-20T17-03-12Z--37e0d14f-7269-7ca0-4419-d7b13abfeea9");
 
     let mut crypto = CoreCrypto::default();
-    crypto.kdfparams_dklen = 32;
-    crypto.kdf = Kdf::Pbkdf2 {
+    crypto.kdf_params.dklen = 32;
+    crypto.kdf_params.kdf = Kdf::Pbkdf2 {
         prf: Prf::default(),
         c: 10240,
     };
-    crypto.kdfparams_salt = Salt::from(arr!(
+    crypto.kdf_params.salt = Salt::from(arr!(
         &Vec::from_hex("095a4028fa2474bb2191f9fc1d876c79a9ff76ed029aa7150d37da785a00175b",)
             .unwrap(),
         KDF_SALT_BYTES
@@ -126,15 +128,13 @@ fn should_decode_keyfile_without_address() {
     let key = KeyFile::decode(&file_content(path)).unwrap();
 
     // verify encoding & decoding full cycle logic
-    let key = KeyFile::decode(&json::encode(&key).unwrap()).unwrap();
+    let key = KeyFile::decode(&serde_json::to_string(&key).unwrap()).unwrap();
 
     if let CryptoType::Core(ref exp_core) = exp.crypto {
         if let CryptoType::Core(ref recv_core) = key.crypto {
             assert_eq!(key, exp);
             assert_eq!(key.visible, exp.visible);
-            assert_eq!(recv_core.kdfparams_dklen, exp_core.kdfparams_dklen);
-            assert_eq!(recv_core.kdf, exp_core.kdf);
-            assert_eq!(recv_core.kdfparams_salt, exp_core.kdfparams_salt);
+            assert_eq!(recv_core.kdf_params, exp_core.kdf_params);
             assert_eq!(recv_core.cipher_text, exp_core.cipher_text);
             assert_eq!(recv_core.cipher_params.iv, exp_core.cipher_params.iv);
             assert_eq!(recv_core.mac, exp_core.mac);
@@ -150,13 +150,13 @@ fn should_decode_keyfile_with_address() {
         keyfile_path("UTC--2017-03-17T10-52-08.229Z--0047201aed0b69875b24b614dda0270bcd9f11cc");
 
     let mut crypto = CoreCrypto::default();
-    crypto.kdfparams_dklen = 32;
-    crypto.kdf = Kdf::Scrypt {
+    crypto.kdf_params.kdf = Kdf::Scrypt {
         n: 1024,
         r: 8,
         p: 1,
     };
-    crypto.kdfparams_salt = Salt::from(arr!(
+    crypto.kdf_params.dklen = 32;
+    crypto.kdf_params.salt = Salt::from(arr!(
         &Vec::from_hex("fd4acb81182a2c8fa959d180967b374277f2ccf2f7f401cb08d042cc785464b4",)
             .unwrap(),
         KDF_SALT_BYTES
@@ -189,21 +189,21 @@ fn should_decode_keyfile_with_address() {
     let key = KeyFile::decode(&file_content(path)).unwrap();
 
     // verify encoding & decoding full cycle logic
-    let key = KeyFile::decode(&json::encode(&key).unwrap()).unwrap();
+    let key = KeyFile::decode(&serde_json::to_string(&key).unwrap()).unwrap();
 
     if let CryptoType::Core(ref exp_core) = exp.crypto {
         if let CryptoType::Core(ref recv_core) = key.crypto {
             assert_eq!(key, exp);
             assert_eq!(key.visible, exp.visible);
-            assert_eq!(recv_core.kdfparams_dklen, exp_core.kdfparams_dklen);
-            assert_eq!(recv_core.kdf, exp_core.kdf);
-            assert_eq!(recv_core.kdfparams_salt, exp_core.kdfparams_salt);
+            assert_eq!(recv_core.kdf_params, exp_core.kdf_params);
             assert_eq!(recv_core.cipher_text, exp_core.cipher_text);
             assert_eq!(recv_core.cipher_params.iv, exp_core.cipher_params.iv);
             assert_eq!(recv_core.mac, exp_core.mac);
         } else {
             assert!(false, "Invalid Crypto type")
         }
+    } else {
+        assert!(false, "Invalid Crypto type")
     }
 }
 
@@ -229,7 +229,7 @@ fn should_decode_hd_wallet_keyfile() {
     let key = KeyFile::decode(&file_content(path)).unwrap();
 
     // verify encoding & decoding full cycle logic
-    let key = KeyFile::decode(&json::encode(&key).unwrap()).unwrap();
+    let key = KeyFile::decode(&serde_json::to_string(&key).unwrap()).unwrap();
 
     if let CryptoType::HdWallet(ref exp_hd) = exp.crypto {
         if let CryptoType::HdWallet(ref recv_hd) = key.crypto {
@@ -251,7 +251,7 @@ fn should_use_security_level() {
     let sec = KdfDepthLevel::Normal;
     let kf = KeyFile::new("1234567890", &sec, None, None).unwrap();
     if let CryptoType::Core(ref core) = kf.crypto {
-        assert_eq!(core.kdf, Kdf::from(sec));
+        assert_eq!(core.kdf_params.kdf, Kdf::from(sec));
     } else {
         assert!(false, "Invalid Crypto type")
     }
@@ -259,7 +259,7 @@ fn should_use_security_level() {
     let sec = KdfDepthLevel::High;
     let kf = KeyFile::new("1234567890", &sec, Some("s".to_string()), None).unwrap();
     if let CryptoType::Core(ref core) = kf.crypto {
-        assert_eq!(core.kdf, Kdf::from(sec));
+        assert_eq!(core.kdf_params.kdf, Kdf::from(sec));
     } else {
         assert!(false, "Invalid Crypto type")
     }

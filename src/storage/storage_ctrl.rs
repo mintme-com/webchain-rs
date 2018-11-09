@@ -1,10 +1,24 @@
 use super::addressbook::AddressbookStorage;
 use super::contracts::ContractStorage;
 use super::keyfile::KeystoreError;
-use super::{build_addressbook_storage, build_contract_storage, build_keyfile_storage, build_path,
-            KeyfileStorage};
+use super::{
+    build_addressbook_storage, build_contract_storage, build_keyfile_storage, build_path,
+    KeyfileStorage,
+};
 use std::collections::HashMap;
 use std::path::Path;
+
+const CHAIN_NAMES: &'static [&'static str; 9] = &[
+    "eth",
+    "morden",
+    "ropsten",
+    "rinkeby",
+    "rootstock-main",
+    "rootstock-test",
+    "kovan",
+    "etc",
+    "etc-morden",
+];
 
 /// Controller to switch storage according to specified chain
 pub struct StorageController {
@@ -15,10 +29,11 @@ pub struct StorageController {
 
 impl StorageController {
     /// Create new `StorageController`
+    /// with a subfolders for
     pub fn new<P: AsRef<Path>>(base_path: P) -> Result<StorageController, KeystoreError> {
         let mut st = StorageController::default();
 
-        for id in &["mainnet", "morden"] {
+        for id in CHAIN_NAMES {
             st.keyfile_storages.insert(
                 id.to_string(),
                 build_keyfile_storage(build_path(base_path.as_ref(), id, "keystore"))?,

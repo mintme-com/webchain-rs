@@ -7,15 +7,13 @@ mod error;
 mod language;
 
 pub use self::error::Error;
-pub use self::language::{BIP39_ENGLISH_WORDLIST, Language};
-use crypto::digest::Digest;
-use crypto::sha2;
+pub use self::language::{Language, BIP39_ENGLISH_WORDLIST};
 pub use hdwallet::bip32::{generate_key, HDPath};
 use keystore::{Kdf, Prf};
 use num::bigint::BigUint;
 use num::{FromPrimitive, ToPrimitive};
 use rand::{OsRng, Rng};
-use std::iter::repeat;
+use sha2::{self, Digest};
 use std::ops::{BitAnd, Shr};
 
 /// Size of entropy in bytes
@@ -119,7 +117,8 @@ impl Mnemonic {
     /// * `src` - A mnemonic sentence with `MNEMONIC_SIZE` length
     ///
     pub fn try_from(lang: Language, src: &str) -> Result<Self, Error> {
-        let w: Vec<String> = src.to_string()
+        let w: Vec<String> = src
+            .to_string()
             .split_whitespace()
             .map(|w| w.to_string())
             .collect();
@@ -154,11 +153,7 @@ pub fn gen_entropy(byte_length: usize) -> Result<Vec<u8>, Error> {
 fn checksum(data: &[u8]) -> u8 {
     let mut hash = sha2::Sha256::new();
     hash.input(data);
-
-    let mut out: Vec<u8> = repeat(0).take(32).collect();
-    hash.result(&mut out);
-
-    out[0]
+    hash.result()[0]
 }
 
 /// Get indexes from entropy
@@ -277,7 +272,8 @@ mod tests {
     fn should_create_from_sentence_12() {
         let s = "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic";
         let mnemonic = Mnemonic::try_from(Language::English, s).unwrap();
-        let w: Vec<String> = s.to_string()
+        let w: Vec<String> = s
+            .to_string()
             .split_whitespace()
             .map(|w| w.to_string())
             .collect();
@@ -294,7 +290,8 @@ mod tests {
         let s = "beyond stage sleep clip because twist token leaf atom beauty genius food \
                  business side grid unable middle armed observe pair crouch tonight away coconut";
         let mnemonic = Mnemonic::try_from(Language::English, s).unwrap();
-        let w: Vec<String> = s.to_string()
+        let w: Vec<String> = s
+            .to_string()
             .split_whitespace()
             .map(|w| w.to_string())
             .collect();

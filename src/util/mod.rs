@@ -12,6 +12,17 @@ use std::mem::transmute;
 
 static HEX_CHARS: &'static [u8] = b"0123456789abcdef";
 
+const ETH: &'static str = "eth";
+const MORDEN: &'static str = "morden";
+const ROPSTEN: &'static str = "ropsten";
+const RINKEBY: &'static str = "rinkeby";
+const ROOTSTOCK_MAINNET: &'static str = "rootstock-main";
+const ROOTSTOCK_TESTNET: &'static str = "rootstock-test";
+const KOVAN: &'static str = "kovan";
+const ETC: &'static str = "etc";
+const MAINNET: &'static str = "mainnet";
+const ETC_MORDEN: &'static str = "etc-morden";
+
 /// Convert `self` into hex string
 pub trait ToHex {
     /// converts to hex
@@ -42,10 +53,17 @@ impl ToHex for u64 {
 /// # Arguments:
 /// * `id` - target chain id
 ///
-pub fn to_chain_name(id: u8) -> Option<String> {
+pub fn to_chain_name(id: u8) -> Option<&'static str> {
     match id {
-        101 => Some("mainnet".to_string()),
-        111 => Some("testnet".to_string()),
+        1 => Some(ETH),
+        2 => Some(MORDEN),
+        3 => Some(ROPSTEN),
+        4 => Some(RINKEBY),
+        30 => Some(ROOTSTOCK_MAINNET),
+        31 => Some(ROOTSTOCK_TESTNET),
+        42 => Some(KOVAN),
+        61 => Some(ETC),
+        62 => Some(ETC_MORDEN),
         _ => None,
     }
 }
@@ -56,9 +74,16 @@ pub fn to_chain_name(id: u8) -> Option<String> {
 /// * `name` - target chain name
 ///
 pub fn to_chain_id(name: &str) -> Option<u8> {
-    match name {
-        "mainnet" => Some(101),
-        "testnet" | "morden" => Some(111),
+    match name.to_lowercase().as_str() {
+        ETH => Some(1),
+        MORDEN => Some(2),
+        ROPSTEN => Some(3),
+        RINKEBY => Some(4),
+        ROOTSTOCK_MAINNET => Some(30),
+        ROOTSTOCK_TESTNET => Some(31),
+        KOVAN => Some(42),
+        ETC | MAINNET => Some(61),
+        ETC_MORDEN => Some(62),
         _ => None,
     }
 }
@@ -387,7 +412,33 @@ mod tests {
 
     #[test]
     fn should_convert_to_chain_id() {
-        assert_eq!(to_chain_id("testnet"), Some(62));
-        assert_eq!(to_chain_id("testnet"), to_chain_id("morden"));
+        assert_eq!(to_chain_id("eth"), Some(1));
+        assert_eq!(to_chain_id("morden"), Some(2));
+        assert_eq!(to_chain_id("ropsten"), Some(3));
+        assert_eq!(to_chain_id("rinkeby"), Some(4));
+        assert_eq!(to_chain_id("rootstock-main"), Some(30));
+        assert_eq!(to_chain_id("rootstock-test"), Some(31));
+        assert_eq!(to_chain_id("kovan"), Some(42));
+        assert_eq!(to_chain_id("etc"), Some(61));
+        assert_eq!(to_chain_id("mainnet"), Some(61));
+        assert_eq!(to_chain_id("etc-morden"), Some(62));
+
+        assert_eq!(to_chain_id("eTc"), Some(61));
+        assert_eq!(to_chain_id("ecccc"), None);
+    }
+
+    #[test]
+    fn should_convert_to_chain_name() {
+        assert_eq!(to_chain_name(1), Some(ETH));
+        assert_eq!(to_chain_name(2), Some(MORDEN));
+        assert_eq!(to_chain_name(3), Some(ROPSTEN));
+        assert_eq!(to_chain_name(4), Some(RINKEBY));
+        assert_eq!(to_chain_name(30), Some(ROOTSTOCK_MAINNET));
+        assert_eq!(to_chain_name(31), Some(ROOTSTOCK_TESTNET));
+        assert_eq!(to_chain_name(42), Some(KOVAN));
+        assert_eq!(to_chain_name(61), Some(ETC));
+        assert_eq!(to_chain_name(62), Some(ETC_MORDEN));
+
+        assert_eq!(to_chain_name(100), None);
     }
 }

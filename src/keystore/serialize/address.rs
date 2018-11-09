@@ -2,20 +2,27 @@
 
 use super::core::Address;
 use regex::Regex;
-use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
+use serde::de;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
-impl Decodable for Address {
-    fn decode<D: Decoder>(d: &mut D) -> Result<Address, D::Error> {
-        d.read_str()
+impl<'de> Deserialize<'de> for Address {
+    fn deserialize<D>(deserializer: D) -> Result<Address, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        String::deserialize(deserializer)
             .map(|s| format!("0x{}", s))
-            .and_then(|s| Address::from_str(&s).map_err(|e| d.error(&e.to_string())))
+            .and_then(|s| Address::from_str(&s).map_err(de::Error::custom))
     }
 }
 
-impl Encodable for Address {
-    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        s.emit_str(&self.to_string()[2..]) /* cut '0x' prefix */
+impl Serialize for Address {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string()[2..]) /* cut '0x' prefix */
     }
 }
 
@@ -39,7 +46,7 @@ mod tests {
     #[test]
     fn should_encode_default_address() {
         assert_eq!(
-            json::encode(&Address::default()).unwrap(),
+            serde_json::to_string(&Address::default()).unwrap(),
             "\"0000000000000000000000000000000000000000\""
         );
     }
@@ -47,7 +54,8 @@ mod tests {
     #[test]
     fn should_decode_zero_address() {
         assert_eq!(
-            json::decode::<Address>("\"0000000000000000000000000000000000000000\"").unwrap(),
+            serde_json::from_str::<Address>("\"0000000000000000000000000000000000000000\"")
+                .unwrap(),
             Address::default()
         );
     }
@@ -60,7 +68,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            json::encode(&addr).unwrap(),
+            serde_json::to_string(&addr).unwrap(),
             "\"0e7c045110b8dbf29765047380898919c5cb56f4\""
         );
     }
@@ -73,29 +81,33 @@ mod tests {
         ]);
 
         assert_eq!(
-            json::decode::<Address>("\"0e7c045110b8dbf29765047380898919c5cb56f4\"").unwrap(),
+            serde_json::from_str::<Address>("\"0e7c045110b8dbf29765047380898919c5cb56f4\"")
+                .unwrap(),
             addr
         );
     }
 
     #[test]
     fn should_not_decode_wrong_address() {
-        assert!(json::decode::<Address>("\"__7c045110b8dbf29765047380898919c5cb56f4\"").is_err());
+        assert!(
+            serde_json::from_str::<Address>("\"__7c045110b8dbf29765047380898919c5cb56f4\"")
+                .is_err()
+        );
     }
 
     #[test]
     fn should_not_decode_not_string_address() {
-        assert!(json::decode::<Address>("1234567890").is_err());
+        assert!(serde_json::from_str::<Address>("1234567890").is_err());
     }
 
     #[test]
     fn should_not_decode_empty_address() {
-        assert!(json::decode::<Address>("\"\"").is_err());
+        assert!(serde_json::from_str::<Address>("\"\"").is_err());
     }
 
     #[test]
     fn should_not_decode_absent_address() {
-        assert!(json::decode::<Address>("").is_err());
+        assert!(serde_json::from_str::<Address>("").is_err());
     }
 
     #[test]

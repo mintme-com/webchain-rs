@@ -26,7 +26,8 @@ fn should_add_entry() {
     let json = serde_json::from_str::<Value>(
         "{\"address\":\"0x000000000031eaedbc2b611aa528f22343eb52db\", \"name\":\"elaine\", \
          \"description\":\"drug money\"}",
-    ).unwrap();
+    )
+    .unwrap();
     a.add(&json).ok();
     let act = a.list();
     assert_eq!(act.len(), 1);
@@ -37,7 +38,7 @@ fn invalidate_entry_wo_addr() {
     let json = serde_json::from_str::<Value>("{\"name\": \"elaine\"}").unwrap();
     let a = AddressbookStorage::new(addressbook_path());
     match a.validate(&json) {
-        Err(AddressbookError::InvalidAddress(ref str)) => {}
+        Err(AddressbookError::InvalidAddress(ref _str)) => {}
         Err(_) => panic!("Should be InvalidAddress"),
         Ok(_) => panic!("Should fail"),
     }

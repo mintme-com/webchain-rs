@@ -8,7 +8,6 @@ use hdwallet::WManager;
 use jsonrpc_core::{Params, Value};
 use keystore::{os_random, CryptoType, Kdf, KdfDepthLevel, KeyFile, PBKDF2_KDF_NAME};
 use mnemonic::{self, gen_entropy, HDPath, Language, Mnemonic, ENTROPY_BYTE_LENGTH};
-use rustc_serialize::json as rustc_json;
 use serde_json;
 use std::cell::RefCell;
 use std::str::FromStr;
@@ -60,7 +59,7 @@ impl<T, U: Default> Either<(T,), (T, U)> {
     }
 }
 
-pub fn heartbeat(_params: ()) -> Result<i64, Error> {
+pub fn heartbeat() -> Result<i64, Error> {
     use time::get_time;
     let res = get_time().sec;
     debug!("Emerald heartbeat: {}", res);
@@ -68,11 +67,11 @@ pub fn heartbeat(_params: ()) -> Result<i64, Error> {
     Ok(res)
 }
 
-pub fn current_version(_params: ()) -> Result<&'static str, Error> {
+pub fn current_version() -> Result<&'static str, Error> {
     Ok(::version())
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ListAccountAccount {
     name: String,
     address: String,
@@ -185,7 +184,7 @@ pub fn shake_account(
             let new_kf = KeyFile::new_custom(
                 pk,
                 &account.new_passphrase,
-                core.kdf,
+                core.kdf_params.kdf,
                 &mut os_random(),
                 kf.name,
                 kf.description,
@@ -249,7 +248,7 @@ pub fn import_account(
     let storage = storage_ctrl.get_keystore(&additional.chain)?;
     let raw = serde_json::to_string(&raw)?;
 
-    let kf = KeyFile::decode(&raw.to_lowercase())?;
+    let kf = KeyFile::decode(&raw)?;
     storage.put(&kf)?;
 
     debug!("Account imported: {}", kf.address);
@@ -267,8 +266,7 @@ pub fn export_account(
     let addr = Address::from_str(&account.address)?;
 
     let (_, kf) = storage.search_by_address(&addr)?;
-    let raw = rustc_json::encode(&kf)?;
-    let value = serde_json::to_value(&raw)?;
+    let value = serde_json::to_value(&kf)?;
     debug!("Account exported: {}", kf.address);
 
     Ok(value)
@@ -374,7 +372,8 @@ pub fn sign_transaction(
                             let pass = transaction.passphrase.unwrap();
 
                             if let Ok(pk) = kf.decrypt_key(&pass) {
-                                let raw = tr.to_signed_raw(pk, chain_id)
+                                let raw = tr
+                                    .to_signed_raw(pk, chain_id)
                                     .expect("Expect to sign a transaction");
                                 let signed = Transaction::to_raw_params(&raw);
                                 debug!("Signed transaction to: {:?}\n\t raw: {:?}", &tr.to, signed);
@@ -486,7 +485,8 @@ pub fn sign(
             "\x19Ethereum Signed Message:\n{}{}",
             input.data.len(),
             input.data
-        ).as_bytes(),
+        )
+        .as_bytes(),
     );
     match storage.search_by_address(&addr) {
         Ok((_, kf)) => {
@@ -644,7 +644,7 @@ pub fn delete_address(
     storage.delete(&addr)?;
     Ok(())
 }
-//
+
 //pub fn export_contract(
 //    params: Either<(Value,), (Value, FunctionParams)>,
 //    storage: &Arc<Mutex<Arc<Box<StorageController>>>>,
