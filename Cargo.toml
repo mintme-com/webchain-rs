@@ -1,6 +1,7 @@
 [package]
 name = "webchain-rs"
 version = "0.22.0"
+authors = ["Webchain Network"]
 description = "Webchain Network secure account management core libary"
 homepage = "https://webchain.network"
 repository = "https://github.com/webchain-network/webchain-rs"
