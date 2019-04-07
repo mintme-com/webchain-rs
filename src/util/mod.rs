@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn should_convert_to_chain_id() {
-        assert_eq!(to_chain_id("testnet"), Some(62));
+        assert_eq!(to_chain_id("testnet"), Some(24485));
         assert_eq!(to_chain_id("testnet"), to_chain_id("morden"));
     }
 }
