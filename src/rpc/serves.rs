@@ -378,7 +378,6 @@ pub fn sign_transaction(
                                     .expect("Expect to sign a transaction");
                                 let signed = Transaction::to_raw_params(&raw);
                                 debug!("Signed transaction to: {:?}\n\t raw: {:?}", &tr.to, signed);
-
                                 Ok(signed)
                             } else {
                                 Err(Error::InvalidDataFormat("Invalid passphrase".to_string()))

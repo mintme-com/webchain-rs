@@ -42,11 +42,15 @@ impl Transaction {
         // TODO: refactor to avoid this check
         let mut v = u16::from(sig.v);
         let stamp = u16::from(chain * 2 + 35 - 27);
-        if v + stamp <= 0xff {
+        // It should check block.number >= FORK_BLKNUM by default
+        // TODO: replace with actual expression
+        let is_fork = true;
+
+        if is_fork {
             v += stamp;
         }
 
-        rlp.push(&(v as u8));
+        rlp.push(&(v as u16));
         rlp.push(&sig.r[..]);
         rlp.push(&sig.s[..]);
 
