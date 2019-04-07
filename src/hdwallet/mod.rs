@@ -275,7 +275,7 @@ mod tests {
             data: Vec::new(),
         };
 
-        let chain: u8 = 24484;
+        let chain: u8 = 24485;
         let rlp = tx.to_rlp(Some(chain));
         let fd = &manager.devices()[0].1;
         let sign = manager.sign_transaction(&fd, &rlp, None).unwrap();

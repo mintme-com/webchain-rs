@@ -15,9 +15,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use util;
 
-fn to_chain_id(chain: &str, chain_id: Option<usize>, default_id: u8) -> u8 {
+fn to_chain_id(chain: &str, chain_id: Option<usize>, default_id: u16) -> u16 {
     if chain_id.is_some() {
-        return chain_id.unwrap() as u8;
+        return chain_id.unwrap() as u16;
     }
 
     util::to_chain_id(chain).unwrap_or(default_id)
@@ -338,7 +338,7 @@ pub struct SignTxAdditional {
 pub fn sign_transaction(
     params: Either<(SignTxTransaction,), (SignTxTransaction, SignTxAdditional)>,
     storage: &Arc<Mutex<Arc<Box<StorageController>>>>,
-    default_chain_id: u8,
+    default_chain_id: u16,
     wallet_manager: &Arc<Mutex<RefCell<WManager>>>,
 ) -> Result<Params, Error> {
     let storage_ctrl = storage.lock().unwrap();

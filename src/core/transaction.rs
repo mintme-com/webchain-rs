@@ -2,6 +2,7 @@
 
 use super::util::{keccak256, trim_bytes, KECCAK256_BYTES, RLPList, WriteRLP};
 use super::{Address, Error, PrivateKey, Signature};
+use util::to_bytes;
 
 /// Transaction data
 #[derive(Clone, Debug, Default)]
@@ -27,13 +28,13 @@ pub struct Transaction {
 
 impl Transaction {
     /// Sign transaction data with provided private key
-    pub fn to_signed_raw(&self, pk: PrivateKey, chain: u8) -> Result<Vec<u8>, Error> {
+    pub fn to_signed_raw(&self, pk: PrivateKey, chain: u16) -> Result<Vec<u8>, Error> {
         let sig = pk.sign_hash(self.hash(chain))?;
         Ok(self.raw_from_sig(chain, &sig))
     }
 
     /// RLP packed signed transaction from provided `Signature`
-    pub fn raw_from_sig(&self, chain: u8, sig: &Signature) -> Vec<u8> {
+    pub fn raw_from_sig(&self, chain: u16, sig: &Signature) -> Vec<u8> {
         let mut rlp = self.to_rlp_raw(None);
 
         // [Simple replay attack protection](https://github.com/ethereum/eips/issues/155)
@@ -56,14 +57,14 @@ impl Transaction {
     }
 
     /// RLP packed transaction
-    pub fn to_rlp(&self, chain_id: Option<u8>) -> Vec<u8> {
+    pub fn to_rlp(&self, chain_id: Option<u16>) -> Vec<u8> {
         let mut buf = Vec::new();
         self.to_rlp_raw(chain_id).write_rlp(&mut buf);
 
         buf
     }
 
-    fn to_rlp_raw(&self, chain_id: Option<u8>) -> RLPList {
+    fn to_rlp_raw(&self, chain_id: Option<u16>) -> RLPList {
         let mut data = RLPList::default();
 
         data.push(&self.nonce);
@@ -87,7 +88,7 @@ impl Transaction {
         data
     }
 
-    fn hash(&self, chain: u8) -> [u8; KECCAK256_BYTES] {
+    fn hash(&self, chain: u16) -> [u8; KECCAK256_BYTES] {
         let rlp = self.to_rlp_raw(Some(chain));
         let mut vec = Vec::new();
         rlp.write_rlp(&mut vec);
