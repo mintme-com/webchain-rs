@@ -17,6 +17,7 @@ use std::cell::RefCell;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use util;
+use hex;
 
 pub fn current_version() -> Result<&'static str, Error> {
     Ok(::version())
@@ -253,6 +254,8 @@ pub fn sign_transaction(
                                 Ok(hd) => hd,
                                 Err(e) => return Err(Error::InvalidDataFormat(e.to_string())),
                             };
+                            debug!("Sign with HD Wallet. HDPath {} (={}), chain_id {}",
+                                   &hw.hd_path, hex::encode(&hd_path), &chain_id);
 
                             if let Err(e) = wm.update(Some(hd_path.clone())) {
                                 return Err(Error::InvalidDataFormat(format!(
@@ -288,7 +291,8 @@ pub fn sign_transaction(
 
                                 match wm.sign_transaction(&fd, &rlp, Some(hd_path.clone())) {
                                     Ok(s) => {
-                                        let raw = tr.raw_from_sig(chain_id, &s);
+                                        // chain is None because don't need it for Ledger
+                                        let raw = tr.raw_from_sig(None, &s);
                                         let signed = Transaction::to_raw_params(&raw);
                                         debug!(
                                             "HD wallet addr:{:?} path: {:?} signed transaction \

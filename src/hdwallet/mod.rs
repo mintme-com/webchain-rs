@@ -18,6 +18,7 @@ use super::{to_arr, Address, Signature, ECDSA_SIGNATURE_BYTES};
 use hidapi::{HidApi, HidDevice, HidDeviceInfo};
 use std::str::{from_utf8, FromStr};
 use std::{thread, time};
+use hex;
 
 const GET_ETH_ADDRESS: u8 = 0x02;
 const SIGN_ETH_TRANSACTION: u8 = 0x04;
@@ -180,7 +181,7 @@ impl WManager {
                 .build();
             res = sendrecv(&handle, &apdu_cont)?;
         }
-        debug!("Received signature: {:?}", res);
+        debug!("Received signature: {:?}", hex::encode(&res));
         match res.len() {
             ECDSA_SIGNATURE_BYTES => {
                 let mut val: [u8; ECDSA_SIGNATURE_BYTES] = [0; ECDSA_SIGNATURE_BYTES];
@@ -280,7 +281,7 @@ mod tests {
         let fd = &manager.devices()[0].1;
         let sign = manager.sign_transaction(&fd, &rlp, None).unwrap();
 
-        assert_eq!(hex::encode(tx.raw_from_sig(chain, &sign)),
+        assert_eq!(hex::encode(tx.raw_from_sig(Some(chain), &sign)),
                    "f86d80\
                    85\
                    04e3b29200\
