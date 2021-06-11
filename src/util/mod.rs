@@ -44,7 +44,7 @@ impl ToHex for u64 {
 ///
 pub fn to_chain_name(id: u16) -> Option<String> {
     match id {
-        24484 => Some("mainnet".to_string()),
+        24734 => Some("mainnet".to_string()),
         24485 => Some("testnet".to_string()),
         _ => None,
     }
@@ -57,7 +57,7 @@ pub fn to_chain_name(id: u16) -> Option<String> {
 ///
 pub fn to_chain_id(name: &str) -> Option<u16> {
     match name {
-        "mainnet" => Some(24484),
+        "mainnet" => Some(24734),
         "testnet" | "morden" => Some(24485),
         _ => None,
     }
